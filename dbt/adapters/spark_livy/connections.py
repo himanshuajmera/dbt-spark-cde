@@ -10,6 +10,7 @@ from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
 from dbt.adapters.spark import __version__
 from dbt.tracking import DBT_INVOCATION_ENV
+from dbt.adapters.spark_livy.livysession import LivyConnection, LivySessionConnectionWrapper, LivyConnectionManager
 
 try:
     from TCLIService.ttypes import TOperationState as ThriftState
@@ -56,6 +57,7 @@ class SparkConnectionMethod(StrEnum):
     HTTP = "http"
     ODBC = "odbc"
     SESSION = "session"
+    LIVY = 'livy'
 
 
 @dataclass
@@ -77,6 +79,7 @@ class SparkCredentials(Credentials):
     use_ssl: bool = False
     server_side_parameters: Dict[str, Any] = field(default_factory=dict)
     retry_all: bool = False
+    password: Optional[str] = None
 
     @classmethod
     def __pre_deserialize__(cls, data):
@@ -139,7 +142,7 @@ class SparkCredentials(Credentials):
 
     @property
     def type(self):
-        return "spark"
+        return "spark_livy"
 
     @property
     def unique_field(self):
@@ -271,7 +274,7 @@ class PyodbcConnectionWrapper(PyhiveConnectionWrapper):
 
 
 class SparkConnectionManager(SQLConnectionManager):
-    TYPE = "spark"
+    TYPE = "spark_livy"
 
     SPARK_CLUSTER_HTTP_PATH = "/sql/protocolv1/o/{organization}/{cluster}"
     SPARK_SQL_ENDPOINT_HTTP_PATH = "/sql/1.0/endpoints/{endpoint}"
@@ -443,7 +446,10 @@ class SparkConnectionManager(SQLConnectionManager):
                         SessionConnectionWrapper,
                     )
 
-                    handle = SessionConnectionWrapper(Connection())
+                   handle = SessionConnectionWrapper(Connection())
+                elif creds.method == SparkConnectionMethod.LIVY:
+                    # connect to livy interactive session
+                    handle = LivySessionConnectionWrapper(LivyConnectionManager().connect(creds.host, creds.user, creds.password))
                 else:
                     raise dbt.exceptions.DbtProfileError(
                         f"invalid credential method: {creds.method}"
