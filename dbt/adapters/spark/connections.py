@@ -11,6 +11,8 @@ from dbt.utils import DECIMALS
 from dbt.adapters.spark import __version__
 from dbt.tracking import DBT_INVOCATION_ENV
 
+from dbt.adapters.spark.livysession import LivyConnection, LivySessionConnectionWrapper, LivyConnectionManager
+
 try:
     from TCLIService.ttypes import TOperationState as ThriftState
     from thrift.transport import THttpClient
@@ -56,7 +58,7 @@ class SparkConnectionMethod(StrEnum):
     HTTP = "http"
     ODBC = "odbc"
     SESSION = "session"
-
+    LIVY = "livy"
 
 @dataclass
 class SparkCredentials(Credentials):
@@ -77,6 +79,7 @@ class SparkCredentials(Credentials):
     use_ssl: bool = False
     server_side_parameters: Dict[str, Any] = field(default_factory=dict)
     retry_all: bool = False
+    password: Optional[str] = None
 
     @classmethod
     def __pre_deserialize__(cls, data):
@@ -444,6 +447,9 @@ class SparkConnectionManager(SQLConnectionManager):
                     )
 
                     handle = SessionConnectionWrapper(Connection())
+                elif creds.method == SparkConnectionMethod.LIVY:
+                    # connect to livy interactive session
+                    handle = LivySessionConnectionWrapper(LivyConnectionManager().connect(creds.host, creds.user, creds.password))
                 else:
                     raise dbt.exceptions.DbtProfileError(
                         f"invalid credential method: {creds.method}"
