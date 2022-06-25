@@ -446,7 +446,7 @@ class SparkConnectionManager(SQLConnectionManager):
                         SessionConnectionWrapper,
                     )
 
-                   handle = SessionConnectionWrapper(Connection())
+                    handle = SessionConnectionWrapper(Connection())
                 elif creds.method == SparkConnectionMethod.LIVY:
                     # connect to livy interactive session
                     handle = LivySessionConnectionWrapper(LivyConnectionManager().connect(creds.host, creds.user, creds.password))
