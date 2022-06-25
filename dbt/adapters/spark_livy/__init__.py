@@ -8,5 +8,4 @@ from dbt.adapters.base import AdapterPlugin
 from dbt.include import spark_livy
 
 Plugin = AdapterPlugin(
-    adapter=SparkAdapter, credentials=SparkCredentials, include_path=spark.PACKAGE_PATH
-)
+    adapter=SparkAdapter, credentials=SparkCredentials, include_path=spark_livy.PACKAGE_PATH)

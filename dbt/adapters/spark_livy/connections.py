@@ -2,13 +2,18 @@ import os
 
 from contextlib import contextmanager
 
+import requests
+import json
+import time
+
 import dbt.exceptions
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
-from dbt.adapters.spark import __version__
+from dbt.adapters.spark_livy import __version__
+from dbt.adapters.spark_livy.livysession import LivyConnection, LivySessionConnectionWrapper, LivyConnectionManager
 from dbt.tracking import DBT_INVOCATION_ENV
 from dbt.adapters.spark_livy.livysession import LivyConnection, LivySessionConnectionWrapper, LivyConnectionManager
 
@@ -58,7 +63,6 @@ class SparkConnectionMethod(StrEnum):
     ODBC = "odbc"
     SESSION = "session"
     LIVY = 'livy'
-
 
 @dataclass
 class SparkCredentials(Credentials):
@@ -414,9 +418,9 @@ class SparkConnectionManager(SQLConnectionManager):
 
                     cls.validate_creds(creds, required_fields)
 
-                    dbt_spark_version = __version__.version
+                    dbt_spark_livy_version = __version__.version
                     dbt_invocation_env = os.getenv(DBT_INVOCATION_ENV) or "manual"
-                    user_agent_entry = f"dbt-labs-dbt-spark/{dbt_spark_version} (Databricks, {dbt_invocation_env})"  # noqa
+                    user_agent_entry = f"cloudera-dbt-spark-livy/{dbt_spark_livy_version} (Cloudera, {dbt_invocation_env})"  # noqa
 
                     # http://simba.wpengine.com/products/Spark/doc/ODBC_InstallGuide/unix/content/odbc/hi/configuring/serverside.htm
                     ssp = {f"SSP_{k}": f"{{{v}}}" for k, v in creds.server_side_parameters.items()}
@@ -445,7 +449,6 @@ class SparkConnectionManager(SQLConnectionManager):
                         Connection,
                         SessionConnectionWrapper,
                     )
-
                     handle = SessionConnectionWrapper(Connection())
                 elif creds.method == SparkConnectionMethod.LIVY:
                     # connect to livy interactive session
@@ -534,9 +537,14 @@ def build_ssl_transport(host, port, username, auth, kerberos_service_name, passw
     return transport
 
 
-def _is_retryable_error(exc: Exception) -> str:
-    message = str(exc).lower()
-    if "pending" in message or "temporarily_unavailable" in message:
-        return str(exc)
-    else:
-        return ""
+def _is_retryable_error(exc: Exception) -> Optional[str]:
+    message = getattr(exc, "message", None)
+    if message is None:
+        return None
+    message = message.lower()
+    if "pending" in message:
+        return exc.message
+    if 'temporarily_unavailable' in message:
+        return exc.message
+    return None
+
