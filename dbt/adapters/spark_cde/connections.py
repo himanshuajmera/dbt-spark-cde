@@ -1,3 +1,17 @@
+# Copyright 2022 Cloudera Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 
 from contextlib import contextmanager
@@ -14,6 +28,7 @@ from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
 from dbt.adapters.spark_cde import __version__
 from dbt.adapters.spark_cde.livysession import LivyConnection, LivySessionConnectionWrapper, LivyConnectionManager
+from dbt.adapters.spark_cde.cdeapisession import CDEApiSessionConnectionWrapper, CDEApiConnectionManager
 from dbt.tracking import DBT_INVOCATION_ENV
 
 try:
@@ -62,7 +77,7 @@ class SparkConnectionMethod(StrEnum):
     ODBC = "odbc"
     SESSION = "session"
     LIVY = "livy"
-
+    CDE = "cde"
 
 @dataclass
 class SparkCredentials(Credentials):
@@ -84,6 +99,7 @@ class SparkCredentials(Credentials):
     server_side_parameters: Dict[str, Any] = field(default_factory=dict)
     retry_all: bool = False
     password: Optional[str] = None
+    auth_endpoint: Optional[str] = None
 
     @classmethod
     def __pre_deserialize__(cls, data):
@@ -453,6 +469,8 @@ class SparkConnectionManager(SQLConnectionManager):
                 elif creds.method == SparkConnectionMethod.LIVY:
                     # connect to livy interactive session
                     handle = LivySessionConnectionWrapper(LivyConnectionManager().connect(creds.host, creds.user, creds.password))
+                elif creds.method == SparkConnectionMethod.CDE:
+                    handle = CDEApiSessionConnectionWrapper(CDEApiConnectionManager().connect(creds.user, creds.password, creds.auth_endpoint, creds.host))
                 else:
                     raise dbt.exceptions.DbtProfileError(
                         f"invalid credential method: {creds.method}"
