@@ -1,3 +1,3 @@
-{% macro spark_livy__concat(fields) -%}
+{% macro spark_cde__concat(fields) -%}
     concat({{ fields|join(', ') }})
 {%- endmacro %}

@@ -12,8 +12,8 @@ from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
-from dbt.adapters.spark_livy import __version__
-from dbt.adapters.spark_livy.livysession import LivyConnection, LivySessionConnectionWrapper, LivyConnectionManager
+from dbt.adapters.spark_cde import __version__
+from dbt.adapters.spark_cde.livysession import LivyConnection, LivySessionConnectionWrapper, LivyConnectionManager
 from dbt.tracking import DBT_INVOCATION_ENV
 
 try:
@@ -146,7 +146,7 @@ class SparkCredentials(Credentials):
 
     @property
     def type(self):
-        return "spark_livy"
+        return "spark_cde"
 
     @property
     def unique_field(self):
@@ -278,7 +278,7 @@ class PyodbcConnectionWrapper(PyhiveConnectionWrapper):
 
 
 class SparkConnectionManager(SQLConnectionManager):
-    TYPE = "spark_livy"
+    TYPE = "spark_cde"
 
     SPARK_CLUSTER_HTTP_PATH = "/sql/protocolv1/o/{organization}/{cluster}"
     SPARK_SQL_ENDPOINT_HTTP_PATH = "/sql/1.0/endpoints/{endpoint}"
@@ -418,9 +418,9 @@ class SparkConnectionManager(SQLConnectionManager):
 
                     cls.validate_creds(creds, required_fields)
 
-                    dbt_spark_livy_version = __version__.version
+                    dbt_spark_cde_version = __version__.version
                     dbt_invocation_env = os.getenv(DBT_INVOCATION_ENV) or "manual"
-                    user_agent_entry = f"cloudera-dbt-spark-livy/{dbt_spark_livy_version} (Cloudera, {dbt_invocation_env})"  # noqa
+                    user_agent_entry = f"cloudera-dbt-spark-livy/{dbt_spark_cde_version} (Cloudera, {dbt_invocation_env})"  # noqa
 
                     # http://simba.wpengine.com/products/Spark/doc/ODBC_InstallGuide/unix/content/odbc/hi/configuring/serverside.htm
                     ssp = {f"SSP_{k}": f"{{{v}}}" for k, v in creds.server_side_parameters.items()}

@@ -5,10 +5,10 @@ from setuptools import find_namespace_packages, setup
 with open('README.md') as f:
     long_description = f.read()
 
-package_name = "dbt-spark-livy"
-# make sure this always matches dbt/adapters/dbt-spark-livy/__version__.py
-package_version = "1.1.2"
-description = """The dbt-spark-livy adapter plugin for Spark in Cloudera DataHub with Livy interface"""
+package_name = "dbt-spark-cde"
+# make sure this always matches dbt/adapters/spark_cde/__version__.py
+package_version = "1.1.0"
+description = """The dbt-spark-cde adapter plugin for Spark in Cloudera DataHub with CDE API interface"""
 
 setup(
     name=package_name,
@@ -17,7 +17,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Cloudera",
     author_email="innovation-feedback@cloudera.com",
-    url="https://github.com/cloudera/dbt-impala",
+    url="https://github.com/cloudera/dbt-spark-cde",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
