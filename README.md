@@ -1,6 +1,6 @@
-# dbt-spark-livy
+# dbt-spark-cde
 
-The `dbt-spark-livy` adapter allows you to use [dbt](https://www.getdbt.com/) along with [Apache spark-livy](https://spark.apache.org/) and [Cloudera Data Platform](https://cloudera.com) with Livy server support. This code bases use the dbt-spark project (https://github.com/dbt-labs/dbt-spark), and provides a Livy connectivity support over it. 
+The `dbt-spark-cde` adapter allows you to use [dbt](https://www.getdbt.com/) [Cloudera Data Platform](https://cloudera.com) with CDE API server support. This code bases use the dbt-spark project (https://github.com/dbt-labs/dbt-spark), and provides CDE API based connectivity support over it. 
 
 ## Getting started
 
@@ -17,9 +17,9 @@ pyspark
 
 sqlparams
 
-### Installing dbt-spark-livy
+### Installing dbt-spark-cde
 
-`pip install dbt-spark-livy`
+`pip install dbt-spark-cde`
 
 ### Profile Setup
 
@@ -29,15 +29,18 @@ demo_project:
   outputs:
     dev:
      type: spark
-     method: livy
+     method: cde
      schema: my_db
-     host: https://spark-livy-gateway.my.org.com/dbt-spark/cdp-proxy-api/livy_for_spark3/
+     auth_endpoint: https://service.spark-cde-gateway.my.org.com/
+     host: https://spark-cde-gateway.my.org.com/dex/api/v1/
      user: my_user
      password: my_pass
 ```
 
+- To obtain auth_endpoint follow the steps here: (https://docs.cloudera.com/data-engineering/cloud/api-access/topics/cde-api-get-access-token.html)
+
 ### Caveats
-- While using livy , in the Livy UI if you notice sessions change state to dead from starting instead of idle, make sure there is a proper mapping for the user in the IDBroker mapping section 
+- While using cde , in the Livy UI if you notice sessions change state to dead from starting instead of idle, make sure there is a proper mapping for the user in the IDBroker mapping section 
 - Actions > Manage Access > IDBroker Mappings . [Reference](https://docs.cloudera.com/cdf-datahub/7.2.15/flink-analyzing-data/topics/cdf-datahub-sa-create-idbroker-mapping.html)
 - Also make sure the workload password is set either through UI or CLI. [Reference](https://docs.cloudera.com/management-console/cloud/user-management/topics/mc-setting-the-ipa-password.html)
 
