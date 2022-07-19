@@ -9,6 +9,7 @@ from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
 from dbt.adapters.spark_cde import __version__
+from dbt.adapters.spark_cde.cdeapisession import CDEApiSessionConnectionWrapper, CDEApiConnectionManager
 from dbt.tracking import DBT_INVOCATION_ENV
 
 try:
@@ -56,12 +57,14 @@ class SparkConnectionMethod(StrEnum):
     HTTP = "http"
     ODBC = "odbc"
     SESSION = "session"
+    CDE = "cde"
 
 
 @dataclass
 class SparkCredentials(Credentials):
     host: str
     method: SparkConnectionMethod
+    auth_endpoint: str
     database: Optional[str]
     driver: Optional[str] = None
     cluster: Optional[str] = None
@@ -444,6 +447,8 @@ class SparkConnectionManager(SQLConnectionManager):
                     )
 
                     handle = SessionConnectionWrapper(Connection())
+                elif creds.method == SparkConnectionMethod.CDE:
+                    handle = CDEApiSessionConnectionWrapper(CDEApiConnectionManager().connect(creds.user, creds.password, creds.auth_endpoint, creds.host))
                 else:
                     raise dbt.exceptions.DbtProfileError(
                         f"invalid credential method: {creds.method}"
