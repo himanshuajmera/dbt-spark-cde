@@ -8,7 +8,7 @@ from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
-from dbt.adapters.spark import __version__
+from dbt.adapters.spark_cde import __version__
 from dbt.tracking import DBT_INVOCATION_ENV
 
 try:
