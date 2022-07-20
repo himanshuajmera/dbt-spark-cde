@@ -5,7 +5,7 @@ pytest_plugins = ["dbt.tests.fixtures.project"]
 
 
 def pytest_addoption(parser):
-    parser.addoption("--profile", action="store", default="apache_spark", type=str)
+    parser.addoption("--profile", action="store", default="cloudera_spark_cde", type=str)
 
 
 # Using @pytest.mark.skip_profile('apache_spark') uses the 'skip_by_profile_type'
@@ -30,6 +30,8 @@ def dbt_profile_target(request):
         target = databricks_http_cluster_target()
     elif profile_type == "spark_session":
         target = spark_session_target()
+    elif profile_type == "cloudera_spark_cde":
+        target = cloudera_spark_cde()
     else:
         raise ValueError(f"Invalid profile type '{profile_type}'")
     return target
@@ -101,6 +103,15 @@ def spark_session_target():
         "method": "session",
     }
 
+def cloudera_spark_cde():
+    return {
+        "type": "spark_cde",
+        "method": "cde",
+        "host": os.getenv("DBT_CLOUDERA_HOST_NAME"),
+        "auth_endpoint": os.getenv("DBT_CLOUDERA_AUTH_ENDPOINT"),
+        "username": os.getenv("DBT_CLOUDERA_USERNAME"),
+        "password": os.getenv("DBT_CLOUDERA_PASSWORD")
+    }
 
 @pytest.fixture(autouse=True)
 def skip_by_profile_type(request):
