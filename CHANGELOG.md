@@ -1,3 +1,6 @@
+## dbt-spark-cde 1.1.0 (Jul 21, 2022)
+- First alpha release of dbt-spark-cde adapter that supports connection to Cloudera Data Engineering backend using CDE APIs
+
 ## dbt-spark 1.2.0 (April 28, 2022)
 
 ### Fixes
