@@ -28,13 +28,14 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 import dbt.exceptions
 from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
-
+import cProfile as profile
+import pstats
 logger = AdapterLogger("Spark")
 
 DEFAULT_POLL_WAIT = 2 # seconds
 DEFAULT_LOG_WAIT = 10 # seconds
 DEFAULT_RETRIES = 10 # max number of retries for fetching log
-MIN_LINES_TO_PARSE = 3 # minimum lines in the logs file before we can start to parse the sql output 
+MIN_LINES_TO_PARSE = 3 # minimum lines in the logs file before we can start to parse the sql output
 NUMBERS = DECIMALS + (int, float)
 
 class CDEApiCursor:
@@ -93,10 +94,12 @@ class CDEApiCursor:
     def execute(self, sql: str, *parameters: Any) -> None:
         if len(parameters) > 0:
             sql = sql % parameters
-        
+
         # TODO: handle parameterised sql
         # print("Job execute", sql)
 
+        prof = profile.Profile()
+        prof.enable()
         # 0. generate a job name
         job_name = self._generateJobName()
 
@@ -116,11 +119,11 @@ class CDEApiCursor:
         self._cde_connection.submitJob(job_name, job_name, sql_resource, py_resource)
         job = self._cde_connection.runJob(job_name).json()
         self._cde_connection.getJobStatus(job_name)
-    
+
         # 3. run the job
         job_status = self._cde_connection.getJobRunStatus(job).json()
-        
-        # 4. wait for the result       
+
+        # 4. wait for the result
         while job_status["status"] != CDEApiConnection.JOB_STATUS['succeeded']:
             time.sleep(DEFAULT_POLL_WAIT)
             job_status = self._cde_connection.getJobRunStatus(job).json()
@@ -129,9 +132,9 @@ class CDEApiCursor:
                 print("Job Failed", sql, job_status)
                 raise dbt.exceptions.raise_database_error(
                         'Error while executing query: ' + repr(job_status)
-                    ) 
+                    )
 
-        # 5. fetch and populate the results 
+        # 5. fetch and populate the results
         time.sleep(DEFAULT_LOG_WAIT) # wait before trying to access the log - so as to ensure that the logs are written to the bucket
         # print("execute - sql", job, sql)
         # log_types = self._cde_connection.getJobLogTypes(job)
@@ -139,12 +142,17 @@ class CDEApiCursor:
         schema, rows = self._cde_connection.getJobOutput(job)
 
         self._rows = rows
-        self._schema = schema 
+        self._schema = schema
 
         # 6. cleanup resources
         self._cde_connection.deleteResource(job_name)
         self._cde_connection.deleteJob(job_name)
-        
+        prof.disable()
+        # print profiling output
+        print('tks profiling')
+        stats = pstats.Stats(prof).strip_dirs().sort_stats("cumtime")
+        stats.print_stats(15) # top 10 rows
+
     def fetchall(self):
         return self._rows
 
@@ -176,11 +184,11 @@ class CDEApiHelper:
         # print(py_file)
 
         file_obj = io.StringIO(py_file)
-        
+
         return { "file_name": file_name, "file_obj": file_obj, "job_name": sql_resource['job_name'] }
 
 class CDEApiConnection:
-    
+
     JOB_STATUS = { 'starting': "starting", 'running': "running", 'succeeded': "succeeded", 'failed': "failed" }
 
     def __init__(self, base_api_url, access_token, api_header) -> None:
@@ -213,7 +221,7 @@ class CDEApiConnection:
 
     def uploadResource(self, resource_name, file_resource):
         file_put_url = self.base_api_url + "resources" + "/" + resource_name + "/" + file_resource['file_name']
-        
+
         encoded_file_data = MultipartEncoder(
             fields={
                 'file': (file_resource['file_name'], file_resource['file_obj'], 'text/plain')
@@ -221,9 +229,9 @@ class CDEApiConnection:
         )
 
         # print("uploadResource - encoded", encoded_file_data, encoded_file_data.content_type)
-        
+
         header = {'Authorization': "Bearer " + self.access_token, 'Content-Type': encoded_file_data.content_type}
-        
+
         res = requests.put(file_put_url, data=encoded_file_data, headers=header)
         # print("uploadResource", res.text)
         return res
@@ -236,12 +244,12 @@ class CDEApiConnection:
         params["mounts"] = [{ "dirPrefix": "/", "resourceName": resource_name }]
 
         params["type"] = "spark"
-       
+
         params["spark"] = {}
 
         params["spark"]["file"] = py_resource['file_name']
         params["spark"]["files"] = [sql_resource['file_name']]
-        
+
         params["spark"]["conf"] = { "spark.pyspark.python": "python3" }
 
         # print("submitJob - params", params)
@@ -251,7 +259,7 @@ class CDEApiConnection:
 
         # print('submitJob - res', res)
         # print('submitJob - res.text', res.text)
-        
+
         return res
 
     def getJobStatus(self, job_name):
@@ -309,12 +317,12 @@ class CDEApiConnection:
             # if (len(res_lines) <= MIN_LINES_TO_PARSE):
             #     print("getJobOutput - retrying ", no_of_retries, " of ", DEFAULT_RETRIES, " (", job, ")")
 
-            if (no_of_retries > DEFAULT_RETRIES): 
+            if (no_of_retries > DEFAULT_RETRIES):
                 # print("getJobOutput - exceeded retries")
                 break
 
             time.sleep(DEFAULT_LOG_WAIT)
-            
+
         line_number = 0
         for line in res_lines:
             line_number += 1
@@ -352,12 +360,12 @@ class CDEApiConnection:
 
         return schema, rows
 
-    # since CDE API output of job-runs/{id}/logs doesn't return schema type, but only the SQL output, 
-    # we need to infer the datatype of each column and update it in schema record. currently only number 
+    # since CDE API output of job-runs/{id}/logs doesn't return schema type, but only the SQL output,
+    # we need to infer the datatype of each column and update it in schema record. currently only number
     # and bolean type information is inferred and the rest is defaulted to string.
     def extractDatatypes(self, schema, rows):
         first_row = rows[0]
-        
+
         # if we do not have full schema info, do not attempt to extract datatypes
         if (len(schema) != len(first_row)):
             return schema, rows
@@ -367,12 +375,12 @@ class CDEApiConnection:
         is_number = lambda x: x.isnumeric()  # check numeric type
         is_logical = lambda x: x == "true" or x == "false" or x == "True" or x == "False" # check boolean type
         is_true = lambda x: x == "true" or x == "True" # check if the value is true
-        
+
         convert_number = lambda x: float(x) # convert to number
         convert_logical = lambda x: is_true(x) # convert to boolean
 
         # conversion map
-        convert_map = { "number": convert_number, "boolean": convert_logical, "string": lambda x: x } 
+        convert_map = { "number": convert_number, "boolean": convert_logical, "string": lambda x: x }
 
         # convert a row entry based on column type mapping
         def convertType(row, col_types):
@@ -380,18 +388,18 @@ class CDEApiConnection:
                 col = row[idx]
                 col_type = col_types[idx]
                 row[idx] = convert_map[col_type](col)
-        
+
         # extact type info based on column data
         def getType(col_data):
             if (is_number(col_data)): return "number"
             elif (is_logical(col_data)): return "boolean"
-            else: return "string"  
+            else: return "string"
 
         col_types = list(map(lambda x: getType(x), first_row))
 
-        # for each row apply the type conversion 
+        # for each row apply the type conversion
         for row in rows:
-            convertType(row, col_types)    
+            convertType(row, col_types)
 
         # record the type info into schema dict
         n_cols = len(col_types)
@@ -402,7 +410,7 @@ class CDEApiConnection:
 
     def deleteJob(self, job_name):
         res = requests.delete(self.base_api_url + "jobs" + "/" + job_name, headers=self.api_header)
-        
+
         # print("deleteJob - res", res)
         # print("deleteJob - res.text", res.text)
 
@@ -434,7 +442,7 @@ class CDEApiConnectionManager:
     def getBaseAuthURL(self):
         return self.base_auth_url
 
-    def getBaseAPIURL(self): 
+    def getBaseAPIURL(self):
         return self.base_api_url
 
     def getAuthEndpoint(self):
