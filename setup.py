@@ -72,6 +72,7 @@ setup(
     author_email="info@dbtlabs.com",
     url="https://github.com/dbt-labs/dbt-spark",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
+    data_files=[('', ['dbt/adapters/spark_cde/.env'])],
     include_package_data=True,
     install_requires=[
         "dbt-core~={}".format(dbt_core_version),
