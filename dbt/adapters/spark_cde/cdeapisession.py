@@ -29,6 +29,9 @@ import dbt.exceptions
 from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
 
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 logger = AdapterLogger("Spark")
 
 DEFAULT_POLL_WAIT = 2 # seconds
@@ -190,24 +193,24 @@ class CDEApiConnection:
 
     def getJobRunList(self):
         params = {'latestjob': False, 'limit': 20, 'offset': 0, 'orderby': 'ID', 'orderasc': True}
-        res = requests.get(self.base_api_url + "job-runs", params=params, headers=self.api_header)
+        res = requests.get(self.base_api_url + "job-runs", params=params, headers=self.api_header, verify=False)
         return res
 
     def getResources(self):
         params = {'includeFiles': False, 'limit': 20, 'offset': 0, 'orderby': 'name', 'orderasc': True}
-        res = requests.get(self.base_api_url + "resources", params=params, headers=self.api_header)
+        res = requests.get(self.base_api_url + "resources", params=params, headers=self.api_header, verify=False)
         # print("getResources", res.text)
         return res
 
     def createResource(self, resource_name, resource_type):
         params = {'hidden': False, 'name': resource_name, 'type': resource_type}
         # print('createResource - params', params)
-        res = requests.post(self.base_api_url + "resources", data=json.dumps(params), headers=self.api_header)
+        res = requests.post(self.base_api_url + "resources", data=json.dumps(params), headers=self.api_header, verify=False)
         # print("createResource", res.text)
         return res
 
     def deleteResource(self, resource_name):
-        res = requests.delete(self.base_api_url + "resources" + "/" + resource_name, headers=self.api_header)
+        res = requests.delete(self.base_api_url + "resources" + "/" + resource_name, headers=self.api_header, verify=False)
         # print("deleteResource", res.text)
         return res
 
@@ -224,7 +227,7 @@ class CDEApiConnection:
         
         header = {'Authorization': "Bearer " + self.access_token, 'Content-Type': encoded_file_data.content_type}
         
-        res = requests.put(file_put_url, data=encoded_file_data, headers=header)
+        res = requests.put(file_put_url, data=encoded_file_data, headers=header, verify=False)
         # print("uploadResource", res.text)
         return res
 
@@ -247,7 +250,7 @@ class CDEApiConnection:
         # print("submitJob - params", params)
         # print("submitJob - auth header", self.api_header)
 
-        res = requests.post(self.base_api_url + "jobs", data=json.dumps(params), headers=self.api_header)
+        res = requests.post(self.base_api_url + "jobs", data=json.dumps(params), headers=self.api_header, verify=False)
 
         # print('submitJob - res', res)
         # print('submitJob - res.text', res.text)
@@ -255,7 +258,7 @@ class CDEApiConnection:
         return res
 
     def getJobStatus(self, job_name):
-        res = requests.get(self.base_api_url + "jobs" + "/" + job_name, headers=self.api_header)
+        res = requests.get(self.base_api_url + "jobs" + "/" + job_name, headers=self.api_header, verify=False)
 
         # print("getJobStatus - res", res)
         # print("getJobStatus - res.text", res.text)
@@ -263,7 +266,7 @@ class CDEApiConnection:
         return res
 
     def getJobRunStatus(self, job):
-        res = requests.get(self.base_api_url + "job-runs" + "/" + repr(job["id"]), headers=self.api_header)
+        res = requests.get(self.base_api_url + "job-runs" + "/" + repr(job["id"]), headers=self.api_header, verify=False)
 
         # print("getJobRunStatus - res", res)
         # print("getJobRunStatus - res.text", res.text)
@@ -271,7 +274,7 @@ class CDEApiConnection:
         return res
 
     def getJobLogTypes(self, job):
-        res = requests.get(self.base_api_url + "job-runs" + "/" + repr(job["id"]) + "/log-types", headers=self.api_header)
+        res = requests.get(self.base_api_url + "job-runs" + "/" + repr(job["id"]) + "/log-types", headers=self.api_header, verify=False)
 
         # print("getJobLogTypes - res", res)
         # print("getJobLogTypes - res.text", res.text)
@@ -287,7 +290,7 @@ class CDEApiConnection:
 
         while len(res_lines) <= MIN_LINES_TO_PARSE:  # ensure that enough lines are present to start parsing
             req_url = self.base_api_url + "job-runs" + "/" + repr(job["id"]) + "/logs?type=driver%2Fstdout&follow=true"
-            res = requests.get(req_url, headers=self.api_header)
+            res = requests.get(req_url, headers=self.api_header, verify=False)
 
             # print("getJobOutput - url", req_url)
             # print("getJobOutput - job", job)
@@ -401,7 +404,7 @@ class CDEApiConnection:
         return schema, rows
 
     def deleteJob(self, job_name):
-        res = requests.delete(self.base_api_url + "jobs" + "/" + job_name, headers=self.api_header)
+        res = requests.delete(self.base_api_url + "jobs" + "/" + job_name, headers=self.api_header, verify=False)
         
         # print("deleteJob - res", res)
         # print("deleteJob - res.text", res.text)
@@ -411,7 +414,7 @@ class CDEApiConnection:
     def runJob(self, job_name):
         spec = {}
 
-        res = requests.post(self.base_api_url + "jobs" + "/" + job_name + "/" + "run", data=json.dumps(spec), headers=self.api_header)
+        res = requests.post(self.base_api_url + "jobs" + "/" + job_name + "/" + "run", data=json.dumps(spec), headers=self.api_header, verify=False)
 
         # print("runJob - res", res)
         # print("runJob - res.text", res.text)
@@ -452,7 +455,7 @@ class CDEApiConnectionManager:
         # print("auth_endpoint", auth_endpoint)
         # print("auth", auth)
 
-        res = requests.get(auth_endpoint, auth=auth)
+        res = requests.get(auth_endpoint, auth=auth, verify=False)
         # print("res", res)
 
         self.access_token = res.json()['access_token']
